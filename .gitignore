@@ -1,0 +1,61 @@
+# Java and build output
+*.class
+*.jar
+*.war
+*.ear
+**/target/
+**/build/
+**/out/
+.gradle/
+hs_err_pid*
+replay_pid*
+*.hprof
+
+# Editors
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+/infra/certs/generated/
+/.aws/
+/.codex/
+/.agents/
+
+# Runtime data and logs
+/data/
+/logs/
+*.log
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# Python and notebooks
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+.coverage
+htmlcov/
+/durability/data/
+/durability/results/
+
+# Operating system files
+.DS_Store
+Thumbs.db
