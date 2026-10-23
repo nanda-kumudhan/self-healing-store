@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.nio.file.Path;
 import java.sql.DriverManager;
 import java.time.Duration;
+import java.util.concurrent.Future;
+import com.github.dockerjava.api.command.InspectContainerResponse;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
@@ -58,9 +60,18 @@ class InfrastructureIT {
             .withDockerfileFromBuilder(builder -> builder.from("eclipse-temurin:21-jre-jammy")
                 .workDir("/app").copy("app.jar", "/app/app.jar").entryPoint("java", "-jar", "/app/app.jar").build());
         // Use HTTP for this setup test. Normal profiles use mTLS, and the identity check still blocks data APIs.
-        return new GenericContainer<>(image).withEnv("SPRING_PROFILES_ACTIVE", "local")
+        return new ApplicationContainer(image).withEnv("SPRING_PROFILES_ACTIVE", "local")
             .withEnv("SERVER_ADDRESS", "0.0.0.0").withEnv("SERVER_PORT", "8443")
             .withEnv("STORE_DATA_DIRECTORY", "/tmp/shards").withExposedPorts(8443)
             .waitingFor(Wait.forHttp("/api/v1/capabilities").forPort(8443).withStartupTimeout(Duration.ofSeconds(90)));
+    }
+
+    static class ApplicationContainer extends GenericContainer<ApplicationContainer> {
+        ApplicationContainer(Future<String> image) { super(image); }
+
+        @Override public InspectContainerResponse getContainerInfo() {
+            // Docker can assign a different host port after stop/start.
+            return getCurrentContainerInfo();
+        }
     }
 }
