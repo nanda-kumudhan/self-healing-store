@@ -1,0 +1,8 @@
+[
+  {"name":"node-1","listen":"0.0.0.0:18444","upstream":"node-1:8443","enabled":true},
+  {"name":"node-2","listen":"0.0.0.0:18445","upstream":"node-2:8443","enabled":true},
+  {"name":"node-3","listen":"0.0.0.0:18446","upstream":"node-3:8443","enabled":true},
+  {"name":"node-4","listen":"0.0.0.0:18447","upstream":"node-4:8443","enabled":true},
+  {"name":"node-5","listen":"0.0.0.0:18448","upstream":"node-5:8443","enabled":true},
+  {"name":"node-6","listen":"0.0.0.0:18449","upstream":"node-6:8443","enabled":true}
+]

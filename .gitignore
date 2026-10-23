@@ -55,6 +55,8 @@ venv/
 htmlcov/
 /durability/data/
 /durability/results/
+/measurements/
+.jqwik-database
 
 # Operating system files
 .DS_Store

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.5.16</version><relativePath/>
+  </parent>
+  <groupId>dev.healstore</groupId><artifactId>self-healing-store</artifactId><version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>Self-healing encrypted store learning project</name>
+  <modules>
+    <module>vendor/reed-solomon</module><module>common</module><module>client</module>
+    <module>coordinator</module><module>storage-node</module><module>tests/integration</module>
+  </modules>
+  <properties>
+    <java.version>21</java.version><maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <jqwik.version>1.10.2</jqwik.version><picocli.version>4.7.7</picocli.version>
+    <bouncycastle.version>1.86</bouncycastle.version>
+  </properties>
+  <dependencyManagement><dependencies>
+    <dependency><groupId>dev.healstore</groupId><artifactId>common</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>dev.healstore.vendor</groupId><artifactId>reed-solomon</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>info.picocli</groupId><artifactId>picocli</artifactId><version>${picocli.version}</version></dependency>
+    <dependency><groupId>net.jqwik</groupId><artifactId>jqwik</artifactId><version>${jqwik.version}</version><scope>test</scope></dependency>
+    <dependency><groupId>org.bouncycastle</groupId><artifactId>bcprov-jdk18on</artifactId><version>${bouncycastle.version}</version></dependency>
+  </dependencies></dependencyManagement>
+  <build><plugins>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-enforcer-plugin</artifactId><version>3.6.2</version>
+      <executions><execution><id>supported-build-runtime</id><goals><goal>enforce</goal></goals>
+        <configuration><rules><requireJavaVersion><version>[21,26)</version></requireJavaVersion>
+          <requireMavenVersion><version>[3.6.3,)</version></requireMavenVersion></rules></configuration>
+      </execution></executions>
+    </plugin>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId>
+      <configuration><includes><include>**/*Test.java</include><include>**/*Properties.java</include></includes></configuration>
+    </plugin>
+  </plugins></build>
+</project>

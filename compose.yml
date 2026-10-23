@@ -1,0 +1,130 @@
+name: healstore
+
+x-node: &node
+  build:
+    context: .
+    dockerfile: infra/docker/Dockerfile
+    args:
+      MODULE: storage-node
+  image: healstore/storage-node:dev
+  restart: "no"
+  read_only: true
+  tmpfs:
+    - /tmp:size=128m,mode=1777
+  mem_limit: 384m
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+
+x-node-environment: &node-environment
+  TLS_STORE_PASSWORD: ${TLS_STORE_PASSWORD:?Generate development certificates first}
+  TLS_TRUST_STORE: file:/certs/truststore.p12
+  STORE_DATA_DIRECTORY: /data/shards
+
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: healstore
+      POSTGRES_USER: healstore
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set the generated development database password}
+    volumes:
+      - metadata:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U healstore -d healstore"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 256m
+
+  coordinator:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile
+      args:
+        MODULE: coordinator
+    image: healstore/coordinator:dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/healstore
+      DATABASE_USER: healstore
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?Set the generated development database password}
+      TLS_KEY_STORE: file:/certs/coordinator.p12
+      TLS_TRUST_STORE: file:/certs/truststore.p12
+      TLS_STORE_PASSWORD: ${TLS_STORE_PASSWORD:?Generate development certificates first}
+    volumes:
+      - ./infra/certs/generated/coordinator:/certs:ro
+    ports: ["127.0.0.1:8443:8443"]
+    read_only: true
+    tmpfs: ["/tmp:size=128m,mode=1777"]
+    mem_limit: 512m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+  node-1:
+    <<: *node
+    environment:
+      <<: *node-environment
+      TLS_KEY_STORE: file:/certs/node-1.p12
+    volumes: ["./infra/certs/generated/node-1:/certs:ro", "shards-1:/data"]
+    ports: ["127.0.0.1:8444:8443"]
+  node-2:
+    <<: *node
+    environment:
+      <<: *node-environment
+      TLS_KEY_STORE: file:/certs/node-2.p12
+    volumes: ["./infra/certs/generated/node-2:/certs:ro", "shards-2:/data"]
+    ports: ["127.0.0.1:8445:8443"]
+  node-3:
+    <<: *node
+    environment:
+      <<: *node-environment
+      TLS_KEY_STORE: file:/certs/node-3.p12
+    volumes: ["./infra/certs/generated/node-3:/certs:ro", "shards-3:/data"]
+    ports: ["127.0.0.1:8446:8443"]
+  node-4:
+    <<: *node
+    environment:
+      <<: *node-environment
+      TLS_KEY_STORE: file:/certs/node-4.p12
+    volumes: ["./infra/certs/generated/node-4:/certs:ro", "shards-4:/data"]
+    ports: ["127.0.0.1:8447:8443"]
+  node-5:
+    <<: *node
+    environment:
+      <<: *node-environment
+      TLS_KEY_STORE: file:/certs/node-5.p12
+    volumes: ["./infra/certs/generated/node-5:/certs:ro", "shards-5:/data"]
+    ports: ["127.0.0.1:8448:8443"]
+  node-6:
+    <<: *node
+    environment:
+      <<: *node-environment
+      TLS_KEY_STORE: file:/certs/node-6.p12
+    volumes: ["./infra/certs/generated/node-6:/certs:ro", "shards-6:/data"]
+    ports: ["127.0.0.1:8449:8443"]
+
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    profiles: [chaos]
+    command: ["-host=0.0.0.0", "-config=/config/proxies.json"]
+    volumes: ["./infra/toxiproxy/proxies.json:/config/proxies.json:ro"]
+    ports:
+      - "127.0.0.1:8474:8474"
+      - "127.0.0.1:18444:18444"
+      - "127.0.0.1:18445:18445"
+      - "127.0.0.1:18446:18446"
+      - "127.0.0.1:18447:18447"
+      - "127.0.0.1:18448:18448"
+      - "127.0.0.1:18449:18449"
+    depends_on: [node-1, node-2, node-3, node-4, node-5, node-6]
+
+volumes:
+  metadata:
+  shards-1:
+  shards-2:
+  shards-3:
+  shards-4:
+  shards-5:
+  shards-6:

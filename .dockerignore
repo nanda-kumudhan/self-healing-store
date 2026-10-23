@@ -1,0 +1,14 @@
+.git
+.aws
+.agents
+.codex
+.env*
+**/target
+**/__pycache__
+**/.venv
+infra/certs/generated
+data
+logs
+durability/data
+durability/results
+measurements

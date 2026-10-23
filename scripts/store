@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_ROOT"
+if [[ -z "${STORE_TLS_PASSWORD:-}" && -f infra/certs/generated/store-password ]]; then
+  export STORE_TLS_PASSWORD="$(cat infra/certs/generated/store-password)"
+fi
+exec java -jar client/target/client-0.1.0-SNAPSHOT.jar "$@"

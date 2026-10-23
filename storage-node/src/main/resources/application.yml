@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: storage-node
+  mvc:
+    problemdetails:
+      enabled: true
+server:
+  port: ${SERVER_PORT:8443}
+  shutdown: graceful
+  ssl:
+    enabled: true
+    key-store: ${TLS_KEY_STORE:}
+    key-store-password: ${TLS_STORE_PASSWORD:}
+    key-store-type: PKCS12
+    trust-store: ${TLS_TRUST_STORE:}
+    trust-store-password: ${TLS_STORE_PASSWORD:}
+    trust-store-type: PKCS12
+    client-auth: need
+    enabled-protocols: TLSv1.3,TLSv1.2
+store:
+  data-directory: ${STORE_DATA_DIRECTORY:./data/shards}
+  max-shard-bytes: ${STORE_MAX_SHARD_BYTES:16777216}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
