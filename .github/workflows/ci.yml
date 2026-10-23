@@ -1,4 +1,4 @@
-name: Check backend setup
+name: Check encrypted store
 on: [push, pull_request]
 permissions:
   contents: read
@@ -16,4 +16,5 @@ jobs:
         with:
           python-version: '3.12'
       - run: bash scripts/check.sh
+      - run: python3 scripts/e2e.py
       - run: ./mvnw -B -ntp -Pintegration verify

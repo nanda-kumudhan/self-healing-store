@@ -19,6 +19,7 @@ x-node-environment: &node-environment
   TLS_STORE_PASSWORD: ${TLS_STORE_PASSWORD:?Generate development certificates first}
   TLS_TRUST_STORE: file:/certs/truststore.p12
   STORE_DATA_DIRECTORY: /data/shards
+  STORE_COORDINATOR: https://coordinator:8443
 
 services:
   postgres:
@@ -67,6 +68,8 @@ services:
     environment:
       <<: *node-environment
       TLS_KEY_STORE: file:/certs/node-1.p12
+      STORE_NODE_NAME: node-1
+      STORE_ENDPOINT: https://node-1:8443
     volumes: ["./infra/certs/generated/node-1:/certs:ro", "shards-1:/data"]
     ports: ["127.0.0.1:8444:8443"]
   node-2:
@@ -74,6 +77,8 @@ services:
     environment:
       <<: *node-environment
       TLS_KEY_STORE: file:/certs/node-2.p12
+      STORE_NODE_NAME: node-2
+      STORE_ENDPOINT: https://node-2:8443
     volumes: ["./infra/certs/generated/node-2:/certs:ro", "shards-2:/data"]
     ports: ["127.0.0.1:8445:8443"]
   node-3:
@@ -81,6 +86,8 @@ services:
     environment:
       <<: *node-environment
       TLS_KEY_STORE: file:/certs/node-3.p12
+      STORE_NODE_NAME: node-3
+      STORE_ENDPOINT: https://node-3:8443
     volumes: ["./infra/certs/generated/node-3:/certs:ro", "shards-3:/data"]
     ports: ["127.0.0.1:8446:8443"]
   node-4:
@@ -88,6 +95,8 @@ services:
     environment:
       <<: *node-environment
       TLS_KEY_STORE: file:/certs/node-4.p12
+      STORE_NODE_NAME: node-4
+      STORE_ENDPOINT: https://node-4:8443
     volumes: ["./infra/certs/generated/node-4:/certs:ro", "shards-4:/data"]
     ports: ["127.0.0.1:8447:8443"]
   node-5:
@@ -95,6 +104,8 @@ services:
     environment:
       <<: *node-environment
       TLS_KEY_STORE: file:/certs/node-5.p12
+      STORE_NODE_NAME: node-5
+      STORE_ENDPOINT: https://node-5:8443
     volumes: ["./infra/certs/generated/node-5:/certs:ro", "shards-5:/data"]
     ports: ["127.0.0.1:8448:8443"]
   node-6:
@@ -102,8 +113,21 @@ services:
     environment:
       <<: *node-environment
       TLS_KEY_STORE: file:/certs/node-6.p12
+      STORE_NODE_NAME: node-6
+      STORE_ENDPOINT: https://node-6:8443
     volumes: ["./infra/certs/generated/node-6:/certs:ro", "shards-6:/data"]
     ports: ["127.0.0.1:8449:8443"]
+
+  node-7:
+    <<: *node
+    profiles: [spare]
+    environment:
+      <<: *node-environment
+      TLS_KEY_STORE: file:/certs/node-7.p12
+      STORE_NODE_NAME: node-7
+      STORE_ENDPOINT: https://node-7:8443
+    volumes: ["./infra/certs/generated/node-7:/certs:ro", "shards-7:/data"]
+    ports: ["127.0.0.1:8450:8443"]
 
   toxiproxy:
     image: ghcr.io/shopify/toxiproxy:2.12.0
@@ -118,6 +142,7 @@ services:
       - "127.0.0.1:18447:18447"
       - "127.0.0.1:18448:18448"
       - "127.0.0.1:18449:18449"
+      - "127.0.0.1:18450:18450"
     depends_on: [node-1, node-2, node-3, node-4, node-5, node-6]
 
 volumes:
@@ -128,3 +153,4 @@ volumes:
   shards-4:
   shards-5:
   shards-6:
+  shards-7:

@@ -20,24 +20,32 @@ public class OpaqueShardStore {
     private final long maxBytes;
 
     public OpaqueShardStore(@Value("${store.data-directory}") Path directory,
-                           @Value("${store.max-shard-bytes}") long maxBytes) throws IOException {
-        if (maxBytes <= 0) throw new IllegalArgumentException("max-shard-bytes must be positive");
+        @Value("${store.max-shard-bytes}") long maxBytes) throws IOException {
+        if (maxBytes <= 0)
+            throw new IllegalArgumentException("max-shard-bytes must be positive");
         this.directory = directory.toAbsolutePath().normalize();
         this.maxBytes = maxBytes;
         Files.createDirectories(this.directory);
+        // At startup there are no active uploads. Remove unpublished files from an interrupted process.
+        try (var entries = Files.newDirectoryStream(this.directory, ".*.part")) {
+            for (var entry : entries) Files.deleteIfExists(entry);
+        }
     }
 
-    public void put(UUID id, InputStream source, long declaredLength, Consumer<Path> validate) throws IOException {
-        if (declaredLength > maxBytes) throw new ShardTooLargeException();
+    public void put(UUID id, InputStream source, long declaredLength, Consumer<Path> validate)
+        throws IOException {
+        if (declaredLength > maxBytes)
+            throw new ShardTooLargeException();
         Path temporary = Files.createTempFile(directory, ".incoming-", ".part");
         try {
             long written = 0;
             byte[] buffer = new byte[64 * 1024];
             try (var channel = FileChannel.open(temporary, StandardOpenOption.WRITE);
-                 var output = java.nio.channels.Channels.newOutputStream(channel)) {
+                var output = java.nio.channels.Channels.newOutputStream(channel)) {
                 int count;
                 while ((count = source.read(buffer)) != -1) {
-                    if (count > maxBytes - written) throw new ShardTooLargeException();
+                    if (count > maxBytes - written)
+                        throw new ShardTooLargeException();
                     output.write(buffer, 0, count);
                     written += count;
                 }
@@ -50,6 +58,7 @@ public class OpaqueShardStore {
             validate.accept(temporary);
             // A hard link publishes the finished file without replacing an existing shard.
             Files.createLink(path(id), temporary);
+            syncDirectory();
         } finally {
             Files.deleteIfExists(temporary);
         }
@@ -57,9 +66,23 @@ public class OpaqueShardStore {
 
     public Path get(UUID id) throws FileNotFoundException {
         var path = path(id);
-        if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) throw new FileNotFoundException();
+        if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
+            throw new FileNotFoundException();
         return path;
     }
 
-    private Path path(UUID id) { return directory.resolve(id.toString() + ".shard"); }
+    public Path directory() {
+        return directory;
+    }
+    public Path metadata(UUID id) {
+        return directory.resolve(id + ".hash");
+    }
+    public void syncDirectory() throws IOException {
+        try (var channel = FileChannel.open(directory, StandardOpenOption.READ)) {
+            channel.force(true);
+        }
+    }
+    private Path path(UUID id) {
+        return directory.resolve(id.toString() + ".shard");
+    }
 }

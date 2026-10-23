@@ -1,6 +1,5 @@
 package dev.healstore.common.web;
 
-import dev.healstore.common.core.HandsOnRequiredException;
 import java.io.FileNotFoundException;
 import java.nio.file.FileAlreadyExistsException;
 import org.springframework.http.HttpStatus;
@@ -10,13 +9,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
-    @ExceptionHandler(HandsOnRequiredException.class)
-    ProblemDetail unfinished(HandsOnRequiredException exception) {
-        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_IMPLEMENTED, exception.getMessage());
-        problem.setTitle("This part isn't implemented yet");
-        problem.setProperty("code", "HANDS_ON_REQUIRED");
-        problem.setProperty("task", exception.task());
-        return problem;
+    @ExceptionHandler(SecurityException.class)
+    ProblemDetail forbidden(SecurityException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    ProblemDetail unavailable(IllegalStateException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -26,7 +26,8 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(FileAlreadyExistsException.class)
     ProblemDetail conflict() {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "That shard already exists. Overwriting it isn't supported yet.");
+        return ProblemDetail.forStatusAndDetail(
+            HttpStatus.CONFLICT, "That shard already exists. Overwriting it isn't supported yet.");
     }
 
     @ExceptionHandler(FileNotFoundException.class)

@@ -1,0 +1,8 @@
+{
+  "source": "https://www.backblaze.com/cloud-storage/resources/hard-drive-test-data",
+  "period": "2025",
+  "failures": 4317,
+  "drive_days": 115638676,
+  "retrieved": "2026-10-23",
+  "description": "Backblaze published 2025 aggregate counts. Failure intensity = failures * 365.25 / drive_days. This is a sensitivity assumption for nodes, not measured node reliability."
+}

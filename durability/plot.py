@@ -11,6 +11,7 @@ def main():
     parser.add_argument("kind", choices=["repair", "throughput", "memory", "durability", "parity"])
     parser.add_argument("csv", type=Path)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--repair-seconds", type=float, help="Select one repair window for a parity comparison")
     args = parser.parse_args()
     with args.csv.open(newline="") as source:
         rows = list(csv.DictReader(source))
@@ -24,12 +25,18 @@ def main():
     try:
         for row in rows:
             if args.kind in ("durability", "parity"):
-                label = row["scheme"]
+                if args.repair_seconds is not None and float(row["repair_seconds"]) != args.repair_seconds:
+                    continue
+                label = row["scheme"] if args.kind == "durability" else f"k={row['data_shards']}, repair={row['repair_seconds']}s"
                 x = float(row["repair_seconds"]) if args.kind == "durability" else int(row["parity_shards"])
                 y = float(row["annual_loss_probability"])
                 if not math.isfinite(x) or x < 0 or not 0 <= y <= 1:
                     raise ValueError("invalid probability or repair duration")
             else:
+                if args.kind == "throughput" and row["label"] not in ("upload", "download", "plain-copy"):
+                    continue
+                if args.kind == "repair" and not row["label"].startswith("repair"):
+                    continue
                 if int(row["exit_code"]) != 0:
                     continue
                 label = row["label"]

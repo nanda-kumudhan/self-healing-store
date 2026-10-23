@@ -1,20 +1,29 @@
-# Things the finished store needs to pass
+# Acceptance checks
 
-This is my test checklist for the core implementation. These checks aren't all implemented or passing yet.
+The exact executed results are in [VALIDATION.md](../docs/VALIDATION.md). This table distinguishes test coverage from deployment validation.
 
-- Round-trip empty files, one-byte files, sizes just below/at/above a chunk boundary, several chunks and a large streamed file. Keep the seed when a jqwik run fails.
-- Try every combination of zero, one and two missing shards out of five. The recovered bytes must match the input. The current property test only checks the Backblaze library.
-- With fewer than three valid shards, return a clear error and leave no published partial output.
-- Flip a shard byte. A trusted expected hash should reject it before reconstruction. Missing and corrupted shards count against the same recovery limit.
-- Change a ciphertext/tag, mix up chunks or tamper with the manifest. Authentication should fail without returning unverified plaintext.
-- Check nonce uniqueness within the chosen key scope, including retries, interrupted uploads, concurrent clients and rewritten objects.
-- Reject clients with no certificate or an untrusted one during TLS (the smoke test covers this). Also reject a trusted certificate with the wrong role/node ID (still to implement).
-- Upload with six nodes, find the five actual holders, then stop one and two holders. Downloads should work. Stop three and check that the download fails cleanly.
-- Repair onto enough separate live nodes, verify hashes and recovered bytes, then download with a different allowed set of holders unavailable.
-- Test both sides of the heartbeat-delay boundary with a controlled clock. A short interruption shouldn't start a repair storm.
-- Send the real storage traffic through Toxiproxy before testing a partition. Make sure a direct connection isn't bypassing it.
-- Check duplicate/retried repairs, coordinator restarts, concurrent metadata changes, full disks and unavailable repair targets.
-- Measure completed repair time at several data sizes, throughput versus a plain copy and peak RSS as file size grows. Repeat runs and record failures and machine/container settings.
-- Use measured repair times in the model. Compare 3+2, 4+2 and three replicas with the same assumptions, and explain correlated failures and limited spares.
+| Check | Coverage |
+| --- | --- |
+| Empty, one-byte, chunk boundary −1/exact/+1, multi-chunk | Real encrypted local disk tests; empty/multi-chunk network tests |
+| Every pair of missing shards | jqwik tests encrypt, code, reconstruct and authenticate random chunks; fixed boundary disk tests |
+| One and two stopped holders | Real six-node Java process cluster, downloaded bytes match SHA-256 |
+| Three stopped holders | Nonzero exit, no destination or leftover download temporary file |
+| Corrupt shard | Flip a byte, reject by trusted hash, recover from survivors, scrub reports damage, verified repair |
+| Missing file on a live node | Scrubber unit test using a real disk store and persisted integrity cache |
+| Ciphertext, index and manifest changes | Authentication property/examples and wrong-password envelope test |
+| Nonce scope | Fresh key/object per upload, deterministic index nonces, independent-key/index tests; interrupted upload restarts fresh |
+| mTLS | Real trusted, anonymous and untrusted TLS tests |
+| Trusted wrong identity | Role checks, wrong node heartbeat, object certificate ownership, wrong server role before HTTP data |
+| Placement | Stable rendezvous rank, relative order under additions, distinct holders |
+| Timeout and repair delay | Controlled clock checks at exact boundaries, coordinator restart grace |
+| Manual repair | Synchronous result, read-back hash verification, pending capacity counts, retry-safe immutable shard writes |
+| Automatic repair | Real process cluster after coordinator restart, fresh heartbeat leases and delayed replacement |
+| Metadata commit | Transactional immutable plans, verified-chunk gate, final count/length checks, ownership and assignment grants |
+| Container kill and Toxiproxy partition | Implemented in `EncryptedClusterIT`; requires Docker and was not runnable on this host |
+| Throughput, repair time and RSS | Repeated real process measurements at 1, 8 and 128 MiB; startup/cache effects recorded |
+| Probability model | No-failure/no-parity/no-repair analytic checks, parity and repair-time monotonicity, sourced rate assumptions |
+| Power cuts, full disks, concurrent active coordinators | Full campaigns not completed; single active coordinator only |
 
-Two permanent losses in a six-node cluster leave only four live nodes. Return or replace capacity before claiming that all five holders are restored. More detail is in `docs/HANDS_ON.md`.
+Two permanent losses in six nodes leave four live nodes. The process test first verifies incomplete repair, then starts node seven and verifies full redundancy. No test claims that putting two shards on one node restores the original failure tolerance.
+
+The container test deliberately routes the client's encrypted data through Toxiproxy. The Compose chaos override additionally routes the coordinator's data calls and per-node heartbeats through proxies so a whole-node partition affects failure detection as well as downloads. Direct connections bypass those proxies.

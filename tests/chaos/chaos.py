@@ -11,13 +11,13 @@ import urllib.request
 import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
-NODES = tuple(f"node-{i}" for i in range(1, 7))
+NODES = tuple(f"node-{i}" for i in range(1, 8))
 
 
 def compose(*args, **kwargs):
     return subprocess.run(["docker", "compose", "--project-directory", str(ROOT),
                            "--env-file", str(ROOT / "infra/certs/generated/dev.env"),
-                           *args], check=True, **kwargs)
+                           "-f", str(ROOT / "compose.yml"), "-f", str(ROOT / "compose.chaos.yml"), *args], check=True, **kwargs)
 
 
 def api(path, payload=None, method=None):
@@ -58,9 +58,11 @@ def main():
     elif args.action == "partition":
         for node in args.nodes:
             api(f"/proxies/{node}", {"enabled": False}, "POST")
+            api(f"/proxies/{node}-heartbeat", {"enabled": False}, "POST")
     elif args.action == "heal-network":
         for node in args.nodes:
             api(f"/proxies/{node}", {"enabled": True}, "POST")
+            api(f"/proxies/{node}-heartbeat", {"enabled": True}, "POST")
             try:
                 api(f"/proxies/{node}/toxics/experiment-latency", method="DELETE")
             except urllib.error.HTTPError as error:

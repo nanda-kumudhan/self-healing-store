@@ -1,4 +1,8 @@
 spring:
+  task:
+    scheduling:
+      pool:
+        size: 2
   application:
     name: storage-node
   mvc:
@@ -18,6 +22,9 @@ server:
     client-auth: need
     enabled-protocols: TLSv1.3,TLSv1.2
 store:
+  coordinator: ${STORE_COORDINATOR:}
+  node-name: ${STORE_NODE_NAME:node-1}
+  endpoint: ${STORE_ENDPOINT:https://node-1:8443}
   data-directory: ${STORE_DATA_DIRECTORY:./data/shards}
   max-shard-bytes: ${STORE_MAX_SHARD_BYTES:16777216}
 management:

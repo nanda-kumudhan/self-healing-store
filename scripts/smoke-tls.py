@@ -77,8 +77,8 @@ def main():
                         if process.poll() is not None or time.monotonic() > deadline:
                             raise RuntimeError(f"{module} failed to start:\n{log_path.read_text()}")
                         time.sleep(0.25)
-                if capabilities["fileOperationsReady"] is not False:
-                    raise AssertionError("Scaffold unexpectedly claims file operations are ready")
+                if capabilities["fileOperationsReady"] is not True:
+                    raise AssertionError("Implementation capabilities are missing")
                 for name, context in (("anonymous", anonymous), ("untrusted", rogue)):
                     try:
                         fetch(origin + "/api/v1/capabilities", context)
@@ -88,21 +88,27 @@ def main():
                         pass
                     else:
                         raise AssertionError(f"{name} peer was accepted")
-                path = "/api/v1/uploads" if module == "coordinator" else "/api/v1/shards/00000000-0000-0000-0000-000000000001"
-                try:
-                    fetch(origin + path, client, "POST" if module == "coordinator" else "PUT", b"test")
-                except urllib.error.HTTPError as error:
-                    with error:
-                        problem = json.load(error)
-                    if error.code != 501 or problem.get("task") != "PEER_IDENTITY":
-                        raise AssertionError(f"Unexpected identity boundary response: {problem}")
-                else:
-                    raise AssertionError("Unfinished identity gate allowed an operation")
+                # A trusted client still cannot impersonate a storage node.
+                if module == "coordinator":
+                    try:
+                        fetch(origin + "/api/v1/nodes/00000000-0000-0000-0000-000000000001/heartbeats", client, "POST")
+                    except urllib.error.HTTPError as error:
+                        if error.code != 403:
+                            raise AssertionError(f"Wrong-role status: {error.code}")
+                    else:
+                        raise AssertionError("Client impersonated a node")
                 if module == "coordinator":
                     cli_env = dict(env, STORE_TLS_PASSWORD=env["TLS_STORE_PASSWORD"])
                     subprocess.run([java, "-jar", str(ROOT / "client/target/client-0.1.0-SNAPSHOT.jar"),
                         "status", "--coordinator", origin], cwd=ROOT, env=cli_env, check=True, capture_output=True)
-                print(f"PASS {module}: trusted mTLS, anonymous/rogue rejection, honest capabilities, fail-closed API")
+                if module == "storage-node":
+                    # It is CA-trusted and has a matching localhost SAN, but is the wrong server role.
+                    wrong_server = subprocess.run([java, "-jar", str(ROOT / "client/target/client-0.1.0-SNAPSHOT.jar"),
+                        "nodes", "--coordinator", origin], cwd=ROOT,
+                        env=dict(env, STORE_TLS_PASSWORD=env["TLS_STORE_PASSWORD"]), capture_output=True, text=True)
+                    if wrong_server.returncode == 0 or "role" not in wrong_server.stderr.lower():
+                        raise AssertionError(f"Client did not reject the wrong server identity: {wrong_server.stderr}")
+                print(f"PASS {module}: trusted mTLS, anonymous/rogue rejection, capabilities, role authorization")
             finally:
                 process.terminate()
                 try:

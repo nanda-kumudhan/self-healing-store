@@ -1,61 +1,50 @@
-# Repair measurements and durability model
+# Repair observations and a durability model
 
-The plotting code and notebook are set up, but I still need to choose the failure-rate inputs, write the probability model and check it. There are no numerical results filled in yet.
+I use real repair durations as inputs to a small model, and keep assumptions separate from measurements. The model is implemented in `model.py`; `analysis.ipynb` explains the calculation and plots. No ML or failure prediction is included.
 
-The notebook and plots have optional dependencies in `requirements.txt`. Install them in a virtual environment. The Java build and Python measurement/fault scripts don't need them.
+## Inputs and assumptions
 
-## Measuring runs
+[Backblaze Drive Stats](https://www.backblaze.com/cloud-storage/resources/hard-drive-test-data) publishes daily drive observations and aggregate failure/exposure counts. `backblaze-2025.json` records the published 2025 counts: 4,317 failures over 115,638,676 drive-days. The intensity estimate is failures × 365.25 / drive-days, in failures per drive-year. An AFR fraction is a rate estimate, not an annual event probability. Backblaze asks for attribution and prohibits selling the data itself; I do not redistribute the data.
 
-`scripts/measure.py` saves:
-
-```csv
-timestamp_utc,label,data_bytes,elapsed_seconds,exit_code,peak_rss_kib
-```
-
-It runs one command at a time. On Linux, peak RSS is in KiB and the timing includes process startup. I supply the data size, so I need to make sure that matches the workload. I'll also need to record machine/container limits, warmup, chunk/coding settings and repeat counts. Input file size and bytes moved during repair are different measurements.
-
-Failed runs stay in the CSV. The plot script leaves them out of successful throughput, memory and repair plots. For repair, use a CSV of commands that actually wait for completed repair. A label alone can't tell the script whether repair finished.
+To calculate an input from downloaded, distinct daily CSV files:
 
 ```bash
-python durability/plot.py repair measurements/repair-runs.csv --output measurements/repair.png
-python durability/plot.py throughput measurements/runs.csv --output measurements/throughput.png
-python durability/plot.py memory measurements/runs.csv --output measurements/memory.png
+python3 durability/model.py drive-stats durability/data/DAILY.csv
 ```
 
-## CSV formats for the model
+Each row counts one drive-day and its binary failure indicator. Do not include the same daily observations twice. These are datacentre disks; using their intensity for a node is a sensitivity assumption, not a claim about this machine or cluster.
 
-Once the model is working, each row should describe one scenario, with its assumptions saved alongside the results. The repair-time plot expects:
+The continuous-time Markov chain has states 0 through m missing holders, plus absorbing loss at m+1. In state i, failure intensity is (k+m-i)λ. A single serial worker repairs one holder at rate μ=1/T. Failures and repairs are independent exponential processes, the chunk starts healthy, failed holders are replaced with identical independent ones, and spare capacity is unlimited. Three replicas use k=1,m=2. These are per-chunk probabilities, without whole-file independence claims.
 
-```csv
-scheme,repair_seconds,annual_loss_probability
-```
+I calculate the transition matrix with positive uniformization terms and scaling/squaring, and read the absorbing probability directly to avoid subtracting two almost equal numbers. Tests check the no-failure and instantaneous-repair limits, the no-parity analytic result, the no-repair binomial tail and monotonicity. This is a teaching implementation, not a reliability solver validated for all parameter ranges.
 
-The schemes can be `3+2`, `4+2` and `3x replication`. Probabilities go in `[0,1]`. I'll need to be careful about rates, percentages and probabilities, and keep a record of where each failure-rate input came from.
-
-The parity-count plot expects:
-
-```csv
-scheme,parity_shards,annual_loss_probability
-```
-
-Here, `scheme` should identify a fixed data-shard-count/model family. If the failure rate or repair assumptions change between rows, that isn't just a parity comparison anymore.
+## Measured durations
 
 ```bash
-python durability/plot.py durability durability/results/model.csv --output durability/results/repair-risk.png
-python durability/plot.py parity durability/results/parity.csv --output durability/results/parity-risk.png
+python3 scripts/e2e.py --measure --benchmark-mib 1 8 128 --repeats 2
 ```
 
-The plots read probabilities; they don't calculate them. The model cell in `analysis.ipynb` still raises `NotImplementedError`.
+The process harness uses mTLS, H2 metadata and private temporary disks. It verifies downloaded hashes and checks pending counts after repair. The CSV records actual wall time, exit status and Linux child peak RSS. The client has `-Xmx128m`; its RSS also includes native memory. Timing includes CLI startup, TLS and KDF overhead, so it is not steady-state codec throughput. Plain copies share the filesystem/cache and are not equivalent workloads.
 
-## Questions I need to answer
+`repair-one` repairs one deliberately corrupt shard. `repair-node` stops one actual holder and repairs that object's missing shards, which vary with rendezvous placement. The input bytes column is original file size, not network bytes or the size of one repaired shard. `repair-capacity-restored` is a separate recovery scenario. These labels must not be pooled as samples of the same distribution. Manual durations do not include automatic detection/queue delay; the model command adds a declared detection allowance to `repair-one` observations.
 
-- Am I treating AFR as a rate estimate or a one-year event probability? What are the units and conversions?
-- Which drive models and date ranges am I using? How much exposure/drive-day data is there, especially for small groups? Keep the exact source/download.
-- Am I assuming independent, constant-rate, memoryless failures? What happens with shared host, rack or software failures?
-- Is repair time a fixed measurement or a distribution? What changes when repairs queue up or compete for bandwidth?
-- How do temporary outages, permanent losses, finite spares and completed repairs fit into the model?
-- Am I predicting loss of one chunk or a whole file? Chunks can share nodes, so their failures may be related.
-- Is the three-replica comparison using fair capacity/bandwidth assumptions? 3+2 uses about 1.67x storage and three replicas use 3x, before framing and metadata.
-- Do simple cases, such as a zero failure rate, behave sensibly? Can a separate calculation or simulation check the result?
+```bash
+python3 -m venv /tmp/healstore-notebooks
+/tmp/healstore-notebooks/bin/pip install -r durability/requirements.txt
+/tmp/healstore-notebooks/bin/python durability/model.py curves \
+  --repair-seconds 1 30 60 300 3600 86400 \
+  --measured-csv measurements/runs.csv --detection-seconds 30 \
+  --output durability/results/model.csv
+```
 
-I plan to start with [Backblaze Drive Stats](https://www.backblaze.com/cloud-storage/resources/hard-drive-test-data), cite Backblaze and follow its usage terms, including the restriction on selling the data itself. These are datacentre drives; I can't assume the rates or a future prediction model transfer to laptops or this container cluster. The optional ML part isn't implemented.
+The explicit repair grid is a sensitivity experiment. The measured single-shard rows receive the stated detection allowance. `--afr` overrides the sourced rate; an adjacent assumptions JSON records provenance and model limitations. The curves compare 3+2, 4+2 and three replicas, plus a parity sweep. They hold a per-holder repair time fixed rather than simulating equal total bandwidth or rebuilding a whole deployment.
+
+```bash
+/tmp/healstore-notebooks/bin/python durability/plot.py throughput measurements/runs.csv --output measurements/throughput.png
+/tmp/healstore-notebooks/bin/python durability/plot.py memory measurements/runs.csv --output measurements/memory.png
+/tmp/healstore-notebooks/bin/python durability/plot.py repair measurements/runs.csv --output measurements/repair.png
+/tmp/healstore-notebooks/bin/python durability/plot.py durability durability/results/model.csv --output measurements/durability.png
+/tmp/healstore-notebooks/bin/python durability/plot.py parity durability/results/model.csv --repair-seconds 60 --output measurements/parity.png
+```
+
+Failed runs stay in the CSV and are excluded from successful-throughput plots. Repair plots include only repair labels. Small repeated samples show this run's behavior; they do not establish confidence bounds, hardware generality or long-term failure rates. Correlated host/rack/software outages, repair queues shared across chunks, non-exponential times, temporary partitions, silent corruption and finite spares can dominate the independent model. In particular, six nodes after two permanent failures violate the unlimited-spare assumption.

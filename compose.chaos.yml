@@ -1,0 +1,26 @@
+# Use together with compose.yml. Both shard and control traffic go through Toxiproxy.
+services:
+  coordinator:
+    environment:
+      STORE_NODE_PROXY_HOST: toxiproxy
+  node-1:
+    environment:
+      STORE_COORDINATOR: https://toxiproxy:19444
+  node-2:
+    environment:
+      STORE_COORDINATOR: https://toxiproxy:19445
+  node-3:
+    environment:
+      STORE_COORDINATOR: https://toxiproxy:19446
+  node-4:
+    environment:
+      STORE_COORDINATOR: https://toxiproxy:19447
+  node-5:
+    environment:
+      STORE_COORDINATOR: https://toxiproxy:19448
+  node-6:
+    environment:
+      STORE_COORDINATOR: https://toxiproxy:19449
+  node-7:
+    environment:
+      STORE_COORDINATOR: https://toxiproxy:19450

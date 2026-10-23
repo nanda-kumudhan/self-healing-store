@@ -1,6 +1,6 @@
 # ADR 0001: backend setup before the storage logic
 
-Status: using this for the initial setup. The main storage protocol still needs designing.
+Status: historical initial setup. Superseded by [ADR 0002](0002-store-protocol.md) after the user authorized the core implementation. The statements below describe the original scaffold, not the current store.
 
 ## Why
 

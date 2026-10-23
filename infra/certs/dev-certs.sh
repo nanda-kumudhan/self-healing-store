@@ -19,7 +19,7 @@ openssl req -x509 -newkey rsa:3072 -sha256 -days 30 \
   -passout env:TLS_STORE_PASSWORD -subj '/CN=Healstore development CA' \
   -addext 'basicConstraints=critical,CA:TRUE' -addext 'keyUsage=critical,keyCertSign,cRLSign' 2>/dev/null
 
-for IDENTITY in coordinator client node-{1..6}; do
+for IDENTITY in coordinator client node-{1..7}; do
   mkdir "$WORK_DIRECTORY/$IDENTITY"
   openssl req -new -newkey rsa:2048 -noenc -sha256 \
     -keyout "$WORK_DIRECTORY/$IDENTITY/private.key" -out "$WORK_DIRECTORY/$IDENTITY/request.csr" \

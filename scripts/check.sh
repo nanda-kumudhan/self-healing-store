@@ -6,5 +6,5 @@ cd "$PROJECT_ROOT"
 python3 -m unittest discover -s tests/tooling -p '*_test.py'
 bash -n infra/certs/dev-certs.sh scripts/store scripts/check.sh
 # Check the Compose config without printing the secrets it uses.
-TLS_STORE_PASSWORD=validation-only DATABASE_PASSWORD=validation-only docker compose --profile chaos config --quiet
+TLS_STORE_PASSWORD=validation-only DATABASE_PASSWORD=validation-only docker compose -f compose.yml -f compose.chaos.yml --profile chaos --profile spare config --quiet
 python3 scripts/smoke-tls.py
